@@ -6,8 +6,8 @@ from email.mime.text import MIMEText
 
 
 def send_mail():
-    me = "ibabinruel@gmail.com"
-    you = 'inoukbr@gmail.com'
+    me = "" #ibabinruel
+    you = '' #perso
     msg_d = dict()
     msg_d['Subject'] = 'Simple GMail Python Test with Archive job result'
     msg_d['From'] = me
@@ -26,7 +26,7 @@ def send_mail():
     s = smtplib.SMTP('smtp.gmail.com:587')
     s.ehlo()
     s.starttls()
-    s.login("ibabinruel@gmail.com", "9945764in")
+    s.login("", "")
     s.sendmail(me, [you], msg)
     s.quit()
 
