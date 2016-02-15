@@ -44,7 +44,7 @@ class TestSevenZip(BaseTestCase):
         root_zip_file_path = self.base_path
         s_zip = SevenZipFile(root_zip_file_path)
         dir_list = []
-        for a_dir in dir_list:
+        for a_dir in self.dir_list:
             dir_list.append(os.path.join(self.base_path, a_dir))
 
         ret = s_zip.archive_dirs(dir_list, "test")
@@ -54,7 +54,30 @@ class TestSevenZip(BaseTestCase):
         self.assertTrue(os.path.exists(zip_filename_and_path))
 
     def testSimpleZipAndExtract(self):
-        pass
+        root_zip_file_path = self.base_path
+        s_zip = SevenZipFile(root_zip_file_path)
+        dir_list = []
+        for a_dir in self.dir_list:
+            dir_list.append(os.path.join(self.base_path, a_dir))
+
+        ret = s_zip.archive_dirs(dir_list, "test")
+        self.assertTrue(ret)
+
+        zip_filename_and_path = os.path.join(root_zip_file_path, "test.7z")
+        self.assertTrue(os.path.exists(zip_filename_and_path))
+
+        extract_path = os.path.join(self.base_path, "dest")
+        extract_p = Path(extract_path)
+        extract_p.mkdir()
+        eret = s_zip.extract_all(zip_filename_and_path, extract_path)
+        self.assertTrue(eret)
+        dirs_in_dir = os.listdir(extract_path)
+        only_dir_list = []
+        for a_dir in dirs_in_dir:
+            if os.path.isdir(os.path.join(extract_path, a_dir)):
+                only_dir_list.append(a_dir)
+
+        self.assertEqual(2, len(only_dir_list))
 
     def testSimpleArchiveWithPassword(self):
         pass
@@ -65,7 +88,7 @@ class TestSevenZip(BaseTestCase):
 
 class SevenZipFile:
     def __init__(self, file_path):
-        self.seven_path = r"C:\Program Files\7-Zip\7z.exe"
+        self.seven_path = r"C:\Program Files\7-Zip\7z.exe" #not gonna work if I need it to run on multiple machines.
         self.path = file_path
         self._password = None
 
@@ -74,8 +97,6 @@ class SevenZipFile:
 
     def archive_dirs(self, list_dirs, arcname, is_use_pwd=False):
         """
-        rc = subprocess.call(['7z', 'a', '-pP4$$W0rd', '-y', 'myarchive.zip'] +
-                     ['first_file.txt', 'second.file'])
         :param list_dirs: a list of full or relative directory paths. directories ONLY.
         :param arcname: archive name
         :param is_use_pwd: should 7z be called with passw to archive with password.
@@ -111,10 +132,19 @@ class SevenZipFile:
             return True
 
     def extract_all(self, file_path, extract_path):
+        """
+
+        :param file_path:
+        :param extract_path:
+        :return:
+        """
         # make new file_path for ZIP inside extract path
         shutil.copy(file_path, extract_path)
         # use new path here.
-        res = subprocess.run(["7z", "x", "{file}".format(file=file_path)]).returncode
+        filename = os.path.split(file_path)[1]
+        full_extract_file_path = os.path.join(extract_path, filename)
+        res = subprocess.run([self.seven_path, "x", "{file}".format(file=full_extract_file_path),
+                              "-o{out_path}".format(out_path=extract_path)]).returncode
 
         if res != 0:
             return False
