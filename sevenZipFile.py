@@ -88,7 +88,7 @@ class TestSevenZip(BaseTestCase):
 
 class SevenZipFile:
     def __init__(self, file_path):
-        self.seven_path = r"C:\Program Files\7-Zip\7z.exe" #not gonna work if I need it to run on multiple machines.
+        self.seven_path = r"7z.exe"
         self.path = file_path
         self._password = None
 
