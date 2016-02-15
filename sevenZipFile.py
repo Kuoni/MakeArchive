@@ -10,6 +10,7 @@ archive will only accept list of folders.
 
 import os
 import os.path
+import shutil
 import subprocess
 
 from pathlib import Path
@@ -54,5 +55,13 @@ class SevenZipFile:
             return True
 
 
-    def extract_all(self, file_path, password):
+    def extract_all(self, file_path, extract_path, password):
+        # make new file_path for ZIP inside extract path
+        shutil.copy(file_path, extract_path)
+        # use new path here.
         res = subprocess.run(["7z", "x", "{file}".format(file=file_path)]).returncode
+
+        if res != 0:
+            return False
+        else:
+            return True
