@@ -176,11 +176,15 @@ class SevenZipFile:
 
     def extract_all(self, file_path, extract_path, is_use_pwd=False):
         """
-
-        :param file_path:
-        :param extract_path:
-        :return:
+        Extracts all files from a 7z.
+        :param file_path: full path to the 7z file.
+        :param extract_path: directory path in which to extract.
+        :param is_use_pwd: Boolean, are we using a password?
+        :return: True if success, False otherwise.
         """
+        if not os.path.exists(extract_path):
+            os.mkdir(extract_path)
+
         # make new file_path for ZIP inside extract path
         shutil.copy(file_path, extract_path)
         # use new path here.

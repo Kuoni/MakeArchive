@@ -1,11 +1,11 @@
 import datetime
 import os.path
 import shutil
-import zipfile
 
 import unittest
 
 from pathlib import Path
+from sevenZipFile import SevenZipFile
 
 
 class BaseTestCase(unittest.TestCase):
@@ -49,31 +49,6 @@ class TestReadConfig(BaseTestCase):
 
 
 class TestMakeZip(BaseTestCase):
-    def testMakeSimpleArchive(self):
-        file_path = os.path.join(self.fin_path, "testfile.txt")
-        with open(file_path, "w") as fh:
-            lines = ["toto", "test", "852.90$", "Truc"]
-            fh.writelines(lines)
-
-        zip_file_path = os.path.join(self.base_path, "test.zip")
-        with zipfile.ZipFile(zip_file_path, mode="w") as my_zip:
-            my_zip.write(file_path)
-
-        self.assertTrue(os.path.exists(zip_file_path))
-
-        with zipfile.ZipFile(zip_file_path, mode="r") as my_zip_fh:
-            unzip_path = os.path.join(self.base_path, "unzip")
-            my_zip_fh.extractall(unzip_path)
-            another_list = os.listdir(unzip_path)
-            self.assertEqual(1, len(another_list))
-            fin_dir_found = False
-            for root, dirs, files in os.walk(unzip_path):
-                dirname = os.path.split(root)[1]
-                if dirname == "Fin":
-                    fin_dir_found = True
-                    self.assertEqual(1, len(files))
-                    self.assertEqual(files[0], "testfile.txt")
-            self.assertTrue(fin_dir_found)
 
     def testMakeSimpleArchiveZipDir(self):
         file_path = os.path.join(self.fin_path, "testfile.txt")
@@ -81,27 +56,25 @@ class TestMakeZip(BaseTestCase):
             lines = ["toto", "test", "852.90$", "Truc"]
             fh.writelines(lines)
 
-        zip_file_path = os.path.join(self.base_path, "test.zip")
-        with zipfile.ZipFile(zip_file_path, mode="w") as my_zip:
-            for root, dirs, files in os.walk(self.doc_path):
-                for file in files:
-                    my_zip.write(os.path.join(root, file))
-
+        s_zip = SevenZipFile(self.base_path)
+        zip_file_path = os.path.join(self.base_path, "test.7z")
+        ret = s_zip.archive_dirs([self.fin_path], "test")
+        self.assertTrue(ret)
         self.assertTrue(os.path.exists(zip_file_path))
 
-        with zipfile.ZipFile(zip_file_path, mode="r") as my_zip_fh:
-            unzip_path = os.path.join(self.base_path, "unzip")
-            my_zip_fh.extractall(unzip_path)
-            another_list = os.listdir(unzip_path)
-            self.assertEqual(1, len(another_list))
-            fin_dir_found = False
-            for root, dirs, files in os.walk(unzip_path):
-                dirname = os.path.split(root)[1]
-                if dirname == "Fin":
-                    fin_dir_found = True
-                    self.assertEqual(1, len(files))
-                    self.assertEqual(files[0], "testfile.txt")
-            self.assertTrue(fin_dir_found)
+        unzip_path = os.path.join(self.base_path, "unzip")
+        s_zip.extract_all(zip_file_path, unzip_path)
+        another_list = os.listdir(unzip_path)
+        self.assertEqual(2, len(another_list))
+        fin_dir_found = False
+        for root, dirs, files in os.walk(unzip_path):
+            dirname = os.path.split(root)[1]
+            if dirname == "Fin":
+                fin_dir_found = True
+                self.assertEqual(1, len(files))
+                self.assertEqual(files[0], "testfile.txt")
+        self.assertTrue(fin_dir_found)
+
 
     def testCopyFolders(self):
         """
@@ -137,8 +110,8 @@ class TestMakeZip(BaseTestCase):
             with open(file_path, "w") as fh:
                 fh.write("test")
 
-        make = MakeArchive()
-        final_dest_p = Path(self.base_path, "dest")
+        make = MakeArchive(None)
+        final_dest_p = Path(self.base_path, "final_dest")
         final_dest_p.mkdir()
         final_dest_path = str(final_dest_p)
 
@@ -148,19 +121,21 @@ class TestMakeZip(BaseTestCase):
 
         for file in dir_list:
             ext = os.path.splitext(file)[1]
-            if ext == ".zip":
-                with zipfile.ZipFile(os.path.join(final_dest_path, file)) as my_zip_fh:
-                    unzip_path = os.path.join(self.base_path, "unzip")
-                    my_zip_fh.extractall(unzip_path)
-                    another_list = os.listdir(unzip_path)
-                    self.assertEqual(1, len(another_list))
-                    for root, dirs, files in os.walk(unzip_path):
-                        dirname = os.path.split(root)[1]
-                        if dirname == "Fin" or dirname == "Bank":
-                            dir_found_dict[dirname] = True
-                            self.assertEqual(1, len(files))
-                            for doc_file in files:
-                                self.assertEqual("testfile.doc", doc_file)
+            if ext == ".7z":
+                unzip_path = os.path.join(self.base_path, "unzip")
+                zip_file_path = os.path.join(final_dest_path, file)
+                s_zip = SevenZipFile(zip_file_path)
+                ret = s_zip.extract_all(zip_file_path, unzip_path)
+                self.assertTrue(ret)
+                another_list = os.listdir(unzip_path)
+                self.assertEqual(1+len(folders), len(another_list))
+                for root, dirs, files in os.walk(unzip_path):
+                    dirname = os.path.split(root)[1]
+                    if dirname == "Fin" or dirname == "Bank":
+                        dir_found_dict[dirname] = True
+                        self.assertEqual(1, len(files))
+                        for doc_file in files:
+                            self.assertEqual("testfile.doc", doc_file)
             else:
                 self.assertFalse(True)
 
@@ -183,8 +158,8 @@ class ReadConfig:
 
 
 class MakeArchive:
-    def __init__(self, password_file):
-        self.password_file_path = password_file
+    def __init__(self, pwd):
+        self._password = pwd
 
     def create_with_dirs(self, dir_list, work_folder_path, copy_zip_to_path):
         if not os.path.exists(work_folder_path):
@@ -194,21 +169,27 @@ class MakeArchive:
         if not os.path.isdir(copy_zip_to_path):
             raise BaseException("copy to path is not a directory")
 
-        dest_root_path = os.path.join(os.getcwd(), "dest") #be careful with that line, a rmtree will be done on it.
+        dest_root_path = os.path.join(work_folder_path, "work_temp")  # be careful with that line, a rmtree will be done on it.
         dest_dir_p = Path(dest_root_path)
         dest_dir_p.mkdir()
 
+        dest_dir_list = []
         for folder in dir_list:
             dirname = os.path.split(folder)[1]
             to_copy_dir_dest_p = dest_dir_p.joinpath(dirname)
             shutil.copytree(folder, str(to_copy_dir_dest_p))
+            dest_dir_list.append(str(to_copy_dir_dest_p))
 
         timestamp = datetime.datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
-        zip_file_path = os.path.join(work_folder_path, "backup_{stamp}.zip".format(stamp=timestamp))
-        with zipfile.ZipFile(zip_file_path, mode="w") as my_zip:
-            for root, dirs, files in os.walk(dest_root_path):
-                for file in files:
-                    my_zip.write(os.path.join(root, file))
+        archive_name = "backup_{stamp}".format(stamp=timestamp)
+        zip_file_path = os.path.join(work_folder_path, archive_name + ".7z")
+        s_zip = SevenZipFile(work_folder_path)
+        is_use_pwd = False
+        if self._password is not None:
+            is_use_pwd = True
+            s_zip.set_pwd(self._password)
+
+        s_zip.archive_dirs(dest_dir_list, archive_name, is_use_pwd)
 
         shutil.copy(zip_file_path, copy_zip_to_path)
 

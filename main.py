@@ -9,7 +9,7 @@ def execute(conf_file_path):
     reader = ReadConfig(conf_file_path)
     dir_list = reader.read()
     
-    make = MakeArchive()
+    make = MakeArchive(None)
     make.create_with_dirs(dir_list, os.getcwd(), r"F:\\test")
 
 if __name__ == "__main__":
