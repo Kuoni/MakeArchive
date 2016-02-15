@@ -183,6 +183,9 @@ class ReadConfig:
 
 
 class MakeArchive:
+    def __init__(self, password_file):
+        self.password_file_path = password_file
+
     def create_with_dirs(self, dir_list, work_folder_path, copy_zip_to_path):
         if not os.path.exists(work_folder_path):
             raise BaseException("work folder doesn't exist, it needs to exist so we can copy files.")

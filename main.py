@@ -18,6 +18,7 @@ if __name__ == "__main__":
                     " it copies the zip to a final destination.")
     arg_parse.add_argument("-c", "--config", dest="config", default="config.txt",
                            help="specify this flag if you want to have the config read from somewhere else.")
-
+    # make a killswitch switched on by default to disable emails
+    # add a password file.
     the_args = arg_parse.parse_args()
     execute(the_args.config)
