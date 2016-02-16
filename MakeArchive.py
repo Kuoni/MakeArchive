@@ -75,7 +75,6 @@ class TestMakeZip(BaseTestCase):
                 self.assertEqual(files[0], "testfile.txt")
         self.assertTrue(fin_dir_found)
 
-
     def testCopyFolders(self):
         """
         Simple, copies two folders with each one having a file and verifies that both folders and their file are copied.
@@ -157,17 +156,25 @@ class ReadConfig:
         return res_list
 
 
+class DirectoryNotFoundError(Exception):
+    def __init__(self, msg):
+        self.message = msg
+
+    def __str__(self):
+        return self.message
+
+
 class MakeArchive:
     def __init__(self, pwd):
         self._password = pwd
 
     def create_with_dirs(self, dir_list, work_folder_path, copy_zip_to_path):
         if not os.path.exists(work_folder_path):
-            raise BaseException("work folder doesn't exist, it needs to exist so we can copy files.")
+            raise DirectoryNotFoundError("work folder doesn't exist, it needs to exist so we can copy files.")
         if not os.path.exists(copy_zip_to_path):
-            raise BaseException("Final folder path doesn't exist.")
+            raise DirectoryNotFoundError("Final folder path doesn't exist.")
         if not os.path.isdir(copy_zip_to_path):
-            raise BaseException("copy to path is not a directory")
+            raise NotADirectoryError("copy to path is not a directory")
 
         dest_root_path = os.path.join(work_folder_path, "work_temp")  # be careful with that line, a rmtree will be done on it.
         dest_dir_p = Path(dest_root_path)
@@ -177,7 +184,7 @@ class MakeArchive:
         for folder in dir_list:
             dirname = os.path.split(folder)[1]
             to_copy_dir_dest_p = dest_dir_p.joinpath(dirname)
-            shutil.copytree(folder, str(to_copy_dir_dest_p))
+            shutil.copytree(folder, str(to_copy_dir_dest_p))  # can throw Error
             dest_dir_list.append(str(to_copy_dir_dest_p))
 
         timestamp = datetime.datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
