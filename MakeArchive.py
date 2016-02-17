@@ -164,6 +164,14 @@ class DirectoryNotFoundError(Exception):
         return self.message
 
 
+class CleanUpError(Exception):
+    def __init__(self, msg):
+        self.message = msg
+
+    def __str__(self):
+        return self.message
+
+
 class MakeArchive:
     def __init__(self, pwd):
         self._password = pwd
@@ -189,8 +197,8 @@ class MakeArchive:
 
         timestamp = datetime.datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
         archive_name = "backup_{stamp}".format(stamp=timestamp)
-        zip_file_path = os.path.join(work_folder_path, archive_name + ".7z")
-        s_zip = SevenZipFile(work_folder_path)
+        zip_file_path = os.path.join(dest_root_path, archive_name + ".7z")
+        s_zip = SevenZipFile(dest_root_path)
         is_use_pwd = False
         if self._password is not None:
             is_use_pwd = True
@@ -200,7 +208,10 @@ class MakeArchive:
 
         shutil.copy(zip_file_path, copy_zip_to_path)
 
-        shutil.rmtree(dest_root_path)
+        try:
+            shutil.rmtree(dest_root_path)
+        except PermissionError as ex:
+            raise CleanUpError("Couldn't remove work folder.") from ex
 
 
 if __name__ == "__main__":
