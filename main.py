@@ -16,18 +16,23 @@ def send_mail(message, mail_creds_file_path):
     pass
 
 
-def execute(exe_options):
-    reader = ReadConfig(exe_options[CONFIG_KEY])
-    dir_list = reader.read()
-
-    is_use_password = os.path.exists(exe_options[PASSWORD_KEY])
+def parse_zip_pwd(pwd_file_path):
+    is_use_password = os.path.exists(pwd_file_path)
     password = None
     if is_use_password:
-        with open(exe_options[PASSWORD_KEY], "r") as fh:
+        with open(pwd_file_path, "r") as fh:
             line = fh.readline()
             if line is not None:
                 password = line
 
+    return password
+
+
+def execute(exe_options):
+    reader = ReadConfig(exe_options[CONFIG_KEY])
+    dir_list = reader.read()
+
+    password = parse_zip_pwd(exe_options[PASSWORD_KEY])
     make = MakeArchive(password)
     is_error = False
     msg = ""
