@@ -12,6 +12,7 @@ import os
 import os.path
 import shutil
 import subprocess
+import re
 
 from pathlib import Path
 
@@ -133,6 +134,23 @@ class TestSevenZip(BaseTestCase):
             file_path = os.path.join(dir_path, "test.txt")
             self.assertTrue(os.path.exists(file_path))
 
+    def testZipInfoFilesAndFolders(self):
+        root_zip_file_path = self.base_path
+        s_zip = SevenZipFile(root_zip_file_path)
+        dir_list = []
+        for a_dir in self.dir_list:
+            dir_list.append(os.path.join(self.base_path, a_dir))
+
+        ret = s_zip.archive_dirs(dir_list, "test")
+        self.assertTrue(ret)
+
+        zip_filename_and_path = os.path.join(root_zip_file_path, "test.7z")
+        self.assertTrue(os.path.exists(zip_filename_and_path))
+
+        files, folders = s_zip.archive_info(zip_filename_and_path)
+        self.assertEqual(2, files)
+        self.assertEqual(2, folders)
+
 
 class SevenZipFile:
     def __init__(self, file_path):
@@ -203,3 +221,28 @@ class SevenZipFile:
             return False
         else:
             return True
+
+    def archive_info(self, zip_file_path):
+        """
+        Returns the number of files and folders in the archive based on the 7z list function.
+        :param zip_file_path: full path to zip file.
+        :return: tuple: files first, folders second.
+        """
+        cmd_list = [self.seven_path, "l", zip_file_path]
+        files_count = 0
+        folders_count = 0
+        try:
+            res_dict = subprocess.run(cmd_list, timeout=10,stdout=subprocess.PIPE)
+            res = res_dict.returncode
+            data_str = str(res_dict.stdout)
+            str_list = data_str.split('\\r\\n')
+            last_str = str_list[-2]
+            result = re.search("(\d+) files,\s+(\d+) folders", last_str)
+
+            if result:
+                files_count = int(result.groups()[0])
+                folders_count = int(result.groups()[1])
+        except TimeoutError:
+            files_count = folders_count = 0
+
+        return files_count, folders_count
