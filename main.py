@@ -3,6 +3,9 @@ import datetime
 import logging
 import os
 import os.path
+import re
+
+import mailReport
 
 from MakeArchive import CleanUpError
 from MakeArchive import DirectoryNotFoundError
@@ -16,8 +19,66 @@ PASSWORD_KEY = "pwd"
 DEST_PATH_KEY = "dest"
 
 
-def send_mail(message, mail_creds_file_path):
-    logging.info("... Mail system not implemented.")
+def parse_mail_creds(creds_path):
+    res_dict = None
+    if os.path.exists(creds_path):
+        res_dict = dict()
+        with open(creds_path, 'r') as fh:
+            lines = fh.readlines()
+            patt_from = re.compile(r"^From: (.+)$")
+            patt_to = re.compile(r"^To: (.+)$")
+            patt_user = re.compile(r"UN: (.+)$")
+            patt_pwd = re.compile(r"PWD: (.+)$")
+
+            for line in lines:
+                res_from = patt_from.match(line)
+                res_to = patt_to.match(line)
+                res_user = patt_user.match(line)
+                res_pwd = patt_pwd.match(line)
+
+                if res_from and len(res_from.groups()) > 0:
+                    res_dict[mailReport.ADDR_FROM_MAIL_KEY] = res_from.groups()[0]
+
+                if res_to and len(res_to.groups()) > 0:
+                    res_dict[mailReport.ADDR_TO_MAIL_KEY] = res_to.groups()[0]
+
+                if res_user and len(res_user.groups()) > 0:
+                    res_dict[mailReport.LOGIN_USER_KEY] = res_user.groups()[0]
+
+                if res_pwd and len(res_pwd.groups()) > 0:
+                    res_dict[mailReport.LOGIN_PASS_KEY] = res_pwd.groups()[0]
+
+    return res_dict
+
+
+
+def send_mail(title, message, mail_creds_file_path):
+    """
+    Send email to inform the user that the task has completedw
+    :param title: string: title of email.
+    :param message: string: message body of email.
+    :param mail_creds_file_path: 4 keys inside mail file, in order, one per line:
+     from email, to email, username to send, password to send.
+    :return: False if failed to send, True otherwise.
+    """
+    addr_dict = dict()
+    login_dict = dict()
+    temp_dict = parse_mail_creds(mail_creds_file_path)
+    if temp_dict is not None:
+        addr_dict[mailReport.ADDR_FROM_MAIL_KEY] = temp_dict[mailReport.ADDR_FROM_MAIL_KEY]
+        addr_dict[mailReport.ADDR_TO_MAIL_KEY] = temp_dict[mailReport.ADDR_TO_MAIL_KEY]
+
+        login_dict[mailReport.LOGIN_USER_KEY] = temp_dict[mailReport.LOGIN_USER_KEY]
+        login_dict[mailReport.LOGIN_PASS_KEY] = temp_dict[mailReport.LOGIN_PASS_KEY]
+    else:
+        return False
+
+    msg_dict = dict()
+    msg_dict[mailReport.MAIL_TITLE_KEY] = title
+    msg_dict[mailReport.MAIL_MSG_KEY] = message
+    mailReport.send_mail(addr_dict, msg_dict, login_dict)
+
+    return True
 
 
 def parse_zip_pwd(pwd_file_path):
@@ -52,8 +113,9 @@ def execute(exe_options):
     error_msg = "The process failed with message: {msg}"
     try:
         logging.info("Calling Make Archive archiving function")
-        make.create_with_dirs(dir_list, os.getcwd(), exe_options[DEST_PATH_KEY])
-        msg = "Success {dirs_len} backup.".format(dirs_len=len(dir_list))
+        files, folders = make.create_with_dirs(dir_list, os.getcwd(), exe_options[DEST_PATH_KEY])
+        msg = "Success {dirs_len} backup. \n Files: {files}; Folders {folders}".format(
+            dirs_len=len(dir_list), files=files, folders=folders)
         logging.debug("Archive Success")
     except NotADirectoryError as ex:
         is_error = True
@@ -72,7 +134,15 @@ def execute(exe_options):
 
     if not exe_options[DISABLE_MAIL_KEY]:
         logging.info("Sending mail...")
-        send_mail(msg, exe_options[MAIL_CREDS_KEY])
+
+        title = "Backup Butler: A new backup has been delivered"
+        if is_error:
+            title = "Backup Butler: Backup task failed"
+        mail_ret = send_mail(title, msg, exe_options[MAIL_CREDS_KEY])
+        if mail_ret:
+            logging.info("... mail sent.")
+        else:
+            logging.info("... error while trying to send mail!")
 
     logging.info("Task completed.")
 

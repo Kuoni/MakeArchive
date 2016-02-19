@@ -207,11 +207,19 @@ class MakeArchive:
         s_zip.archive_dirs(dest_dir_list, archive_name, is_use_pwd)
 
         shutil.copy(zip_file_path, copy_zip_to_path)
+        files = 0
+        folders = 0
+        try:
+            files, folders = s_zip.archive_info(zip_file_path)
+        except Exception:
+            files = folders = -1
 
         try:
             shutil.rmtree(dest_root_path)
         except PermissionError as ex:
             raise CleanUpError("Couldn't remove work folder.") from ex
+
+        return files, folders
 
 
 if __name__ == "__main__":
