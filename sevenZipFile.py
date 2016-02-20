@@ -184,8 +184,8 @@ class SevenZipFile:
         cmd_list = [self.seven_path, "a", arcname]
         if is_use_pwd:
             cmd_list.extend(["-p{pwd}".format(pwd=password), "-mhe"])
-        res = subprocess.run(cmd_list + [
-                               "@{list_path}".format(list_path=list_file_path)]).returncode
+        res = subprocess.call(cmd_list + [
+                               "@{list_path}".format(list_path=list_file_path)])
 
         if res != 0:
             return False
@@ -213,7 +213,7 @@ class SevenZipFile:
         if is_use_pwd:
             cmd_list.append("-p{pwd}".format(pwd=self._password))
         try:
-            res = subprocess.run(cmd_list, timeout=10).returncode
+            res = subprocess.call(cmd_list, timeout=10)
         except TimeoutError:
             res = -1
 
@@ -232,9 +232,8 @@ class SevenZipFile:
         files_count = 0
         folders_count = 0
         try:
-            res_dict = subprocess.run(cmd_list, timeout=10,stdout=subprocess.PIPE)
-            res = res_dict.returncode
-            data_str = str(res_dict.stdout)
+            output = subprocess.check_output(cmd_list, timeout=10)
+            data_str = str(output)
             str_list = data_str.split('\\r\\n')
             last_str = str_list[-2]
             result = re.search("(\d+) files,\s+(\d+) folders", last_str)
@@ -242,6 +241,8 @@ class SevenZipFile:
             if result:
                 files_count = int(result.groups()[0])
                 folders_count = int(result.groups()[1])
+        except subprocess.CalledProcessError:
+            files_count = folders_count = 0
         except TimeoutError:
             files_count = folders_count = 0
 
