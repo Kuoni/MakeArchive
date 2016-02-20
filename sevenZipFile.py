@@ -151,6 +151,28 @@ class TestSevenZip(BaseTestCase):
         self.assertEqual(2, files)
         self.assertEqual(2, folders)
 
+    def testZipInfoWithPwdFilesAndFolders(self):
+        root_zip_file_path = self.base_path
+        s_zip = SevenZipFile(root_zip_file_path)
+        dir_list = []
+        for a_dir in self.dir_list:
+            dir_list.append(os.path.join(self.base_path, a_dir))
+
+        s_zip.set_pwd("abc123%$")
+        ret = s_zip.archive_dirs(dir_list, "test", True)
+        self.assertTrue(ret)
+
+        zip_filename_and_path = os.path.join(root_zip_file_path, "test.7z")
+        self.assertTrue(os.path.exists(zip_filename_and_path))
+
+        try:
+            files, folders = s_zip.archive_info(zip_filename_and_path, True)
+        except Exception:
+            files = folders = 0
+
+        self.assertEqual(2, files)
+        self.assertEqual(2, folders)
+
 
 class SevenZipFile:
     def __init__(self, file_path):
@@ -222,13 +244,15 @@ class SevenZipFile:
         else:
             return True
 
-    def archive_info(self, zip_file_path):
+    def archive_info(self, zip_file_path, is_use_pwd=False):
         """
         Returns the number of files and folders in the archive based on the 7z list function.
         :param zip_file_path: full path to zip file.
         :return: tuple: files first, folders second.
         """
         cmd_list = [self.seven_path, "l", zip_file_path]
+        if is_use_pwd and self._password is not None:
+            cmd_list.extend(["-p{pwd}".format(pwd=self._password)])
         files_count = 0
         folders_count = 0
         try:

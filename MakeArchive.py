@@ -210,7 +210,7 @@ class MakeArchive:
         files = 0
         folders = 0
         try:
-            files, folders = s_zip.archive_info(zip_file_path)
+            files, folders = s_zip.archive_info(zip_file_path, is_use_pwd)
         except Exception:
             files = folders = -1
 
