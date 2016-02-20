@@ -17,6 +17,7 @@ DISABLE_MAIL_KEY = "is_send_mail"
 MAIL_CREDS_KEY = "send_mail"
 PASSWORD_KEY = "pwd"
 DEST_PATH_KEY = "dest"
+WORK_PATH_KEY = "work"
 
 
 def parse_mail_creds(creds_path):
@@ -49,7 +50,6 @@ def parse_mail_creds(creds_path):
                     res_dict[mailReport.LOGIN_PASS_KEY] = res_pwd.groups()[0]
 
     return res_dict
-
 
 
 def send_mail(title, message, mail_creds_file_path):
@@ -113,7 +113,8 @@ def execute(exe_options):
     error_msg = "The process failed with message: {msg}"
     try:
         logging.info("Calling Make Archive archiving function")
-        files, folders = make.create_with_dirs(dir_list, os.getcwd(), exe_options[DEST_PATH_KEY])
+        files, folders = make.create_with_dirs(dir_list,
+                                               exe_options[WORK_PATH_KEY], exe_options[DEST_PATH_KEY])
         msg = "Success {dirs_len} backup. \n Files: {files}; Folders {folders}".format(
             dirs_len=len(dir_list), files=files, folders=folders)
         logging.debug("Archive Success")
@@ -163,10 +164,13 @@ if __name__ == "__main__":
                            help="SMTP info: first line: username, second line: password")
     arg_parse.add_argument("-p", "--password", dest="password", default="password.txt",
                            help="file with one line: a password. No file means no password.")
+    arg_parse.add_argument("-w", "--work_folder", dest="work_path", default=os.getcwd(),
+                           help="Changes where the script works. Default is current directory.")
 
     the_args = arg_parse.parse_args()
     options = {DEST_PATH_KEY: the_args.dest_path, CONFIG_KEY: the_args.config,
                DISABLE_MAIL_KEY: the_args.disable_mail,
-               MAIL_CREDS_KEY: the_args.mail_creds, PASSWORD_KEY: the_args.password}
+               MAIL_CREDS_KEY: the_args.mail_creds, PASSWORD_KEY: the_args.password,
+               WORK_PATH_KEY: the_args.work_path}
 
     execute(options)
