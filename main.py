@@ -9,6 +9,7 @@ import mailReport
 
 from MakeArchive import CleanUpError
 from MakeArchive import DirectoryNotFoundError
+from MakeArchive import DirectoryConflictError
 from MakeArchive import MakeArchive
 from MakeArchive import ReadConfig
 
@@ -135,7 +136,11 @@ def execute(exe_options):
         is_error = True
         msg = error_msg.format(msg=ex.message)
         logging.info("Error directory not found. {msg}".format(msg=ex.message))
-    except CleanUpError as ex:
+    except DirectoryConflictError as ex:
+        is_error = True
+        msg = error_msg.format(msg=ex.message)
+        logging.info("Error directory conflict. {msg}".format(msg=ex.message))
+    except CleanUpError:
         logging.info("Problem cleaning work folder.")
     except Exception:
         is_error = True

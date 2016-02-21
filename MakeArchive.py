@@ -22,11 +22,15 @@ class BaseTestCase(unittest.TestCase):
         bank_test_dir = os.path.join(doc_test_dir, "Bank")
         bank_p = Path(bank_test_dir)
         bank_p.mkdir()
+        other_fin_dir = os.path.join(base_test_dir, "Fin")
+        other_fin_p = Path(other_fin_dir)
+        other_fin_p.mkdir()
 
         self.base_path = base_test_dir
         self.doc_path = doc_test_dir
         self.fin_path = fin_test_dir
         self.bank_path = bank_test_dir
+        self.other_fin_path = other_fin_dir
 
     def tearDown(self):
         shutil.rmtree(self.base_path)
@@ -102,6 +106,51 @@ class TestMakeZip(BaseTestCase):
             file_path = os.path.join(str(dest_dir_p), dirname, "testfile.doc")
             self.assertTrue(os.path.exists(file_path))
 
+    def testCopyFoldersConflict(self):
+        """
+        Test copytree duplicate error management when two folders from two different drives have the same name.
+        :return:
+        """
+        folders = [self.fin_path, self.bank_path, self.other_fin_path]
+        for folder in folders:
+            file_path = os.path.join(folder, "testfile.doc")
+            with open(file_path, "w") as fh:
+                fh.write("test")
+
+        make = MakeArchive(None)
+        final_dest_p = Path(self.base_path, "final_dest")
+        final_dest_p.mkdir()
+        final_dest_path = str(final_dest_p)
+
+        make.create_with_dirs([self.fin_path, self.bank_path, self.other_fin_path],
+                              self.base_path, final_dest_path)
+        dir_list = os.listdir(final_dest_path)
+        dir_found_dict = {"Fin" : False, "Bank" : False, "unittest_Fin": False}
+
+        for file in dir_list:
+            ext = os.path.splitext(file)[1]
+            if ext == ".7z":
+                unzip_path = os.path.join(self.base_path, "unzip")
+                zip_file_path = os.path.join(final_dest_path, file)
+                s_zip = SevenZipFile(zip_file_path)
+                ret = s_zip.extract_all(zip_file_path, unzip_path)
+                self.assertTrue(ret)
+                another_list = os.listdir(unzip_path)
+                self.assertEqual(1+len(folders), len(another_list))
+                for root, dirs, files in os.walk(unzip_path):
+                    dirname = os.path.split(root)[1]
+                    if dirname == "Fin" or dirname == "Bank" or dirname == "unittest_Fin":
+                        dir_found_dict[dirname] = True
+                        self.assertEqual(1, len(files))
+                        for doc_file in files:
+                            self.assertEqual("testfile.doc", doc_file)
+            else:
+                self.assertFalse(True)
+
+            self.assertTrue(dir_found_dict["Fin"])
+            self.assertTrue(dir_found_dict["Bank"])
+            self.assertTrue(dir_found_dict["unittest_Fin"])
+
     def testFullMake(self):
         folders = [self.fin_path, self.bank_path]
         for folder in folders:
@@ -164,6 +213,14 @@ class DirectoryNotFoundError(Exception):
         return self.message
 
 
+class DirectoryConflictError(Exception):
+    def __init__(self, msg):
+        self.message = msg
+
+    def __str__(self):
+        return self.message
+
+
 class CleanUpError(Exception):
     def __init__(self, msg):
         self.message = msg
@@ -190,9 +247,21 @@ class MakeArchive:
 
         dest_dir_list = []
         for folder in dir_list:
-            dirname = os.path.split(folder)[1]
+            split_path = os.path.split(folder)
+            dirname = split_path[1]
             to_copy_dir_dest_p = dest_dir_p.joinpath(dirname)
-            shutil.copytree(folder, str(to_copy_dir_dest_p))  # can throw Error
+            if os.path.exists(str(to_copy_dir_dest_p)):
+                parent_dirname = os.path.split(split_path[0])[1]
+                to_copy_dir_dest_p = dest_dir_p.joinpath(parent_dirname + "_" + dirname)
+                if os.path.exists(str(to_copy_dir_dest_p)):
+                    raise DirectoryConflictError("Cannot find a proper name for {folder}".format(folder=dirname))
+            try:
+                shutil.copytree(folder, str(to_copy_dir_dest_p))  # can throw Error
+            except shutil.Error:
+                raise DirectoryConflictError("Error during copy for folder: {dirname}".format(
+                    dirname=dirname
+                ))
+
             dest_dir_list.append(str(to_copy_dir_dest_p))
 
         timestamp = datetime.datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
