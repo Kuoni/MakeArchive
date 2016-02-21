@@ -93,6 +93,10 @@ def parse_zip_pwd(pwd_file_path):
     return password
 
 
+def get_timestamp_process_str():
+    return get_now_timestamp().strftime("%Y_%m_%d %H:%M:%S")
+
+
 def get_timestamp_logfile_str():
     return get_now_timestamp().strftime("%Y_%m_%d")
 
@@ -108,6 +112,9 @@ def execute(exe_options):
     logging.info("Parsing Password")
     password = parse_zip_pwd(exe_options[PASSWORD_KEY])
     make = MakeArchive(password)
+
+    time_dict = dict()
+    time_dict[mailReport.TIMESTAMP_START_KEY] = get_timestamp_process_str()
     is_error = False
     msg = ""
     error_msg = "The process failed with message: {msg}"
@@ -115,8 +122,10 @@ def execute(exe_options):
         logging.info("Calling Make Archive archiving function")
         files, folders = make.create_with_dirs(dir_list,
                                                exe_options[WORK_PATH_KEY], exe_options[DEST_PATH_KEY])
-        msg = "Success {dirs_len} backup. \n Files: {files}; Folders {folders}".format(
-            dirs_len=len(dir_list), files=files, folders=folders)
+        time_dict[mailReport.TIMESTAMP_END_KEY] = get_timestamp_process_str()
+        msg = mailReport.make_report(mailReport.msg_success_template,
+                                     dir_list, time_dict, files, folders)
+
         logging.debug("Archive Success")
     except NotADirectoryError as ex:
         is_error = True
